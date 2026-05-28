@@ -1,6 +1,6 @@
 site_name: 智护宝技术库
 site_description: 嵌入式 | AI | 云端 | 前端 · 团队知识中枢
-site_url: https://你的用户名.github.io/tech-handbook
+site_url: https://Mhp-yhyc.github.io/melsgix-iot-competiion
 
 theme:
   name: material
@@ -59,35 +59,14 @@ markdown_extensions:
       permalink: true
   - pymdownx.tasklist:
       custom_checkbox: true
-
-markdown_extensions:
-  - admonition
-  - codehilite
-  - footnotes
-  - toc:
-      permalink: true
-  - pymdownx.tasklist:
-      custom_checkbox: true
-  - attr_list       # 必须添加！
-  - md_in_html      # 必须添加！
-
-
-markdown_extensions:
-  - admonition
-  - codehilite
-  - footnotes
-  - toc:
-      permalink: true
-  - pymdownx.tasklist:
-      custom_checkbox: true
   - attr_list
   - md_in_html
-  - pymdownx.emoji:          # 添加这三行
+  - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_css:
   - extra.css
 
-repo_url: https://github.com/你的用户名/tech-handbook
+repo_url: https://github.com/Mhp-yhyc/melsgix-iot-competiion
 repo_name: GitHub
