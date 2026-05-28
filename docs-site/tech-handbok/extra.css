@@ -1,0 +1,71 @@
+/* ========== 1. 全局字体与排版 ========== */
+body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+.md-typeset h1 {
+    font-weight: 900;
+    color: #1a237e;
+    border-bottom: 3px solid #1a237e;
+    padding-bottom: 8px;
+}
+
+.md-typeset h2 {
+    font-weight: 700;
+    color: #283593;
+    border-left: 4px solid #3f51b5;
+    padding-left: 12px;
+}
+
+/* ========== 2. 代码块圆角阴影 ========== */
+.md-typeset pre > code {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* ========== 3. 表格美化 ========== */
+.md-typeset table:not([class]) {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.md-typeset table:not([class]) th {
+    background-color: #3f51b5;
+    color: white;
+}
+
+/* ========== 4. 链接悬停效果 ========== */
+.md-typeset a:hover {
+    color: #ff6e40;
+    text-decoration: underline;
+}
+
+/* ========== 5. 返回顶部按钮动画 ========== */
+.md-top {
+    transition: all 0.3s ease;
+    border-radius: 50%;
+}
+
+/* ========== 6. 侧边栏导航优化 ========== */
+.md-nav__link--active {
+    font-weight: 700;
+    background: linear-gradient(90deg, #e8eaf6 0%, transparent 100%);
+    border-right: 3px solid #3f51b5;
+}
+
+/* ========== 7. 搜索框高亮 ========== */
+.md-search-result__article:hover {
+    background-color: #e8eaf6;
+}
+
+/* 如果你希望卡片更美观，可额外定制 */
+.md-typeset .grid.cards>ul>li {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: transform 0.2s;
+}
+.md-typeset .grid.cards>ul>li:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}

@@ -1,0 +1,93 @@
+site_name: 智护宝技术库
+site_description: 嵌入式 | AI | 云端 | 前端 · 团队知识中枢
+site_url: https://你的用户名.github.io/tech-handbook
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep orange
+      toggle:
+        name: 切换暗黑模式
+        icon: material/weather-night
+    - scheme: slate
+      primary: indigo
+      accent: deep orange
+      toggle:
+        name: 切换亮色模式
+        icon: material/weather-sunny
+
+nav:
+  - 首页: index.md
+  - 嵌入式硬件:
+      - 传感器: 01-嵌入式硬件/传感器/
+      - 通信协议: 01-嵌入式硬件/通信协议/
+      - 电源管理: 01-嵌入式硬件/电源管理/
+  - 嵌入式软件:
+      - FreeRTOS: 02-嵌入式软件/FreeRTOS/
+      - 驱动开发: 02-嵌入式软件/驱动开发/
+  - AI与算法:
+      - TinyML: 03-AI与算法/TinyML/
+      - 信号处理: 03-AI与算法/信号处理/
+  - 云端与后端:
+      - 物联网平台: 04-云端与后端/物联网平台/
+      - MQTT协议: 04-云端与后端/MQTT协议/
+  - 前端与可视化:
+      - Web仪表盘: 05-前端与可视化/Web仪表盘/
+      - 3D数字孪生: 05-前端与可视化/3D数字孪生/
+  - 调试问题库: 06-调试与问题库/
+  - 项目管理: 07-项目管理/
+
+plugins:
+  - search:
+      lang: zh
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list       # 必须添加！
+  - md_in_html      # 必须添加！
+
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:          # 添加这三行
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra_css:
+  - extra.css
+
+repo_url: https://github.com/你的用户名/tech-handbook
+repo_name: GitHub
