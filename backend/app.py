@@ -100,5 +100,34 @@ def upload_note():
     except Exception as e:
         return jsonify({"code": 500, "msg": f"上传失败：{str(e)}"}), 500
 
+# ------------------- 新增：获取指定路径下所有内容（文件夹+文件） -------------------
+def get_repo_contents(path: str = "") -> list:
+    """
+    获取仓库指定路径下的所有内容（文件夹和文件）
+    :param path: 仓库内路径，如 "01-嵌入式硬件/传感器"
+    :return: 包含名称、类型、路径、链接的列表
+    """
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    resp = requests.get(url, headers=HEADERS, timeout=10)
+    if resp.status_code != 200:
+        return []
+    items = resp.json()
+    contents = []
+    for item in items:
+        contents.append({
+            "name": item.get("name"),
+            "type": item.get("type"),  # "dir" 或 "file"
+            "path": item.get("path"),
+            "html_url": item.get("html_url")
+        })
+    return contents
+
+@app.route("/api/get-contents", methods=["GET"])
+def get_contents():
+    """前端调用此接口，获取指定目录下的所有内容"""
+    target_path = request.args.get("path", "")
+    contents = get_repo_contents(target_path)
+    return jsonify({"data": contents})
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
