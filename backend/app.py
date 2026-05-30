@@ -13,12 +13,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ================================================================
-# 核心配置（确认正确！）
+# 核心配置（已按你的需求调整）
 GITHUB_TOKEN = os.getenv("GH_TOKEN")
 REPO_OWNER = "Mhp-yhyc"
-REPO_NAME = "melsgix-iot-competiion"
+REPO_NAME = "melsgix-iot-competiion"  # 注意：建议检查拼写是否为"competition"
 GITHUB_BRANCH = "main"
-ROOT_CONTENT_DIR = "docs-site"  # 你的内容根目录
+# 关键修改：起始扫描目录设为 tech-handbok
+START_DIR = "docs-site/tech-handbok"
+# 关键修改：扫描深度设为2级（从START_DIR开始向下2级）
+SCAN_DEPTH = 2
 # =================================================================
 
 # GitHub 请求头
@@ -27,18 +30,23 @@ HEADERS = {
     "Accept": "application/vnd.github.v3+json"
 }
 
-# 核心工具：递归获取目录下所有内容（支持多级目录）
-def get_repo_contents_recursive(path: str = "") -> list:
+# 核心工具：带深度控制的递归获取目录内容
+def get_repo_contents_with_depth(path: str, current_depth: int = 0) -> list:
     """
-    递归获取指定路径下所有内容（文件+文件夹），包含完整层级结构
-    :param path: 仓库内路径，如 "docs-site/01-嵌入式硬件"
+    从指定路径开始，递归获取指定深度的目录内容
+    :param path: 仓库内路径，如 "docs-site/tech-handbok"
+    :param current_depth: 当前递归深度（起始为0）
     :return: 包含名称、类型、路径、链接、子内容的嵌套列表
     """
+    # 如果当前深度达到设定的最大深度，停止递归
+    if current_depth >= SCAN_DEPTH:
+        return []
+    
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}?ref={GITHUB_BRANCH}"
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
         resp.raise_for_status()
-        logger.info(f"API 响应: {resp.status_code} | 路径: {path}")
+        logger.info(f"API 响应: {resp.status_code} | 路径: {path} | 当前深度: {current_depth}")
         items = resp.json()
         contents = []
         
@@ -48,12 +56,15 @@ def get_repo_contents_recursive(path: str = "") -> list:
                 "type": item.get("type"),  # "dir" 或 "file"
                 "path": item.get("path"),
                 "html_url": item.get("html_url"),
-                "sub_contents": []  # 子内容容器（文件夹会填充）
+                "sub_contents": []  # 子内容容器
             }
             
-            # 如果是文件夹，递归获取子内容
-            if item.get("type") == "dir":
-                content["sub_contents"] = get_repo_contents_recursive(item.get("path"))
+            # 如果是文件夹，且当前深度小于最大深度，继续递归
+            if item.get("type") == "dir" and current_depth < SCAN_DEPTH - 1:
+                content["sub_contents"] = get_repo_contents_with_depth(
+                    item.get("path"), 
+                    current_depth + 1  # 深度+1
+                )
             
             contents.append(content)
         return contents
@@ -95,42 +106,44 @@ def write_markdown_file(file_path: str, md_content: str, commit_msg: str):
             logger.error(f"错误响应: {e.response.status_code} - {e.response.text}")
 
 # -------------------------- 接口调整 --------------------------
-# 接口1：获取内容根目录（docs-site）下的一级分类文件夹
+# 接口1：获取 tech-handbok 下的一级分类（01-嵌入式硬件等）
 @app.route("/api/get-first-dir", methods=["GET"])
 def get_first_dir():
-    # 关键修改：从 ROOT_CONTENT_DIR（docs-site）获取一级文件夹
-    folders = get_repo_folders(ROOT_CONTENT_DIR)
-    logger.info(f"内容根目录下的一级分类: {folders}")
+    """获取 tech-handbok 下的一级文件夹（即你需要的分类）"""
+    folders = get_repo_folders(START_DIR)
+    logger.info(f"tech-handbok 下的一级分类: {folders}")
     return jsonify({
         "data": folders, 
-        "root_dir": ROOT_CONTENT_DIR,
+        "start_dir": START_DIR,
         "branch": GITHUB_BRANCH
     })
 
-# 接口2：获取指定目录的完整内容（支持递归多层）
-@app.route("/api/get-full-contents/<path:dir_path>", methods=["GET"])
-def get_full_contents(dir_path):
+# 接口2：获取 tech-handbok 下两级深度的完整目录结构
+@app.route("/api/get-two-level-contents", methods=["GET"])
+def get_two_level_contents():
+    """从 tech-handbok 开始，向下扫描两级的完整目录结构"""
+    full_contents = get_repo_contents_with_depth(START_DIR)
+    return jsonify({
+        "data": full_contents,
+        "start_dir": START_DIR,
+        "scan_depth": SCAN_DEPTH,
+        "branch": GITHUB_BRANCH
+    })
+
+# 接口3：获取指定目录的内容（带深度控制）
+@app.route("/api/get-contents/<path:dir_path>", methods=["GET"])
+def get_contents(dir_path):
     """
-    获取指定目录的完整内容（含子目录和文件）
-    示例：/api/get-full-contents/docs-site/01-嵌入式硬件
+    获取指定目录的内容（默认扫描两级）
+    示例：/api/get-contents/docs-site/tech-handbok/01-嵌入式硬件
     """
-    # 拼接完整路径（防止用户输入不带docs-site）
-    full_path = f"{ROOT_CONTENT_DIR}/{dir_path}" if not dir_path.startswith(ROOT_CONTENT_DIR) else dir_path
-    contents = get_repo_contents_recursive(full_path)
+    # 拼接完整路径
+    full_path = dir_path if dir_path.startswith(START_DIR) else f"{START_DIR}/{dir_path}"
+    contents = get_repo_contents_with_depth(full_path)
     return jsonify({
         "data": contents,
         "current_path": full_path,
-        "branch": GITHUB_BRANCH
-    })
-
-# 接口3：获取内容根目录的完整目录树（一键获取所有层级）
-@app.route("/api/get-full-tree", methods=["GET"])
-def get_full_tree():
-    """获取 docs-site 下的完整目录结构（含所有二级/三级内容）"""
-    full_tree = get_repo_contents_recursive(ROOT_CONTENT_DIR)
-    return jsonify({
-        "data": full_tree,
-        "root_dir": ROOT_CONTENT_DIR,
+        "scan_depth": SCAN_DEPTH,
         "branch": GITHUB_BRANCH
     })
 
