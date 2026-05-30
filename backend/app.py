@@ -6,21 +6,20 @@ import base64
 import logging  
 
 app = Flask(__name__)
-CORS(app)  # 全局允许跨域
+# 强化跨域，解决前端本地访问卡住、跨域拦截问题
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ================================================================
-# 核心配置（已按你的需求调整）
+# 核心配置
 GITHUB_TOKEN = os.getenv("GH_TOKEN")
 REPO_OWNER = "Mhp-yhyc"
-REPO_NAME = "melsgix-iot-competiion"  # 注意：建议检查拼写是否为"competition"
+REPO_NAME = "melsgix-iot-competiion" 
 GITHUB_BRANCH = "main"
-# 关键修改：起始扫描目录设为 tech-handbok
 START_DIR = "docs-site/tech-handbok"
-# 关键修改：扫描深度设为2级（从START_DIR开始向下2级）
 SCAN_DEPTH = 2
 # =================================================================
 
@@ -32,13 +31,6 @@ HEADERS = {
 
 # 核心工具：带深度控制的递归获取目录内容
 def get_repo_contents_with_depth(path: str, current_depth: int = 0) -> list:
-    """
-    从指定路径开始，递归获取指定深度的目录内容
-    :param path: 仓库内路径，如 "docs-site/tech-handbok"
-    :param current_depth: 当前递归深度（起始为0）
-    :return: 包含名称、类型、路径、链接、子内容的嵌套列表
-    """
-    # 如果当前深度达到设定的最大深度，停止递归
     if current_depth >= SCAN_DEPTH:
         return []
     
@@ -53,17 +45,16 @@ def get_repo_contents_with_depth(path: str, current_depth: int = 0) -> list:
         for item in items:
             content = {
                 "name": item.get("name"),
-                "type": item.get("type"),  # "dir" 或 "file"
+                "type": item.get("type"),
                 "path": item.get("path"),
                 "html_url": item.get("html_url"),
-                "sub_contents": []  # 子内容容器
+                "sub_contents": []
             }
             
-            # 如果是文件夹，且当前深度小于最大深度，继续递归
             if item.get("type") == "dir" and current_depth < SCAN_DEPTH - 1:
                 content["sub_contents"] = get_repo_contents_with_depth(
                     item.get("path"), 
-                    current_depth + 1  # 深度+1
+                    current_depth + 1
                 )
             
             contents.append(content)
@@ -76,7 +67,6 @@ def get_repo_contents_with_depth(path: str, current_depth: int = 0) -> list:
 
 # 工具函数：获取指定路径下的一级文件夹（非递归）
 def get_repo_folders(path: str = "") -> list:
-    """获取指定路径下的一级文件夹列表"""
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}?ref={GITHUB_BRANCH}"
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
@@ -87,7 +77,7 @@ def get_repo_folders(path: str = "") -> list:
         logger.error(f"获取文件夹失败: {str(e)}")
         return []
 
-# 工具函数：写入Markdown文件（保持不变）
+# 工具函数：写入Markdown文件
 def write_markdown_file(file_path: str, md_content: str, commit_msg: str):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}?ref={GITHUB_BRANCH}"
     encode_content = base64.b64encode(md_content.encode("utf-8")).decode("utf-8")
@@ -105,11 +95,10 @@ def write_markdown_file(file_path: str, md_content: str, commit_msg: str):
         if hasattr(e, 'response') and e.response is not None:
             logger.error(f"错误响应: {e.response.status_code} - {e.response.text}")
 
-# -------------------------- 接口调整 --------------------------
-# 接口1：获取 tech-handbok 下的一级分类（01-嵌入式硬件等）
+# -------------------------- 业务接口 --------------------------
+# 接口1：获取 tech-handbok 下一级分类
 @app.route("/api/get-first-dir", methods=["GET"])
 def get_first_dir():
-    """获取 tech-handbok 下的一级文件夹（即你需要的分类）"""
     folders = get_repo_folders(START_DIR)
     logger.info(f"tech-handbok 下的一级分类: {folders}")
     return jsonify({
@@ -118,10 +107,9 @@ def get_first_dir():
         "branch": GITHUB_BRANCH
     })
 
-# 接口2：获取 tech-handbok 下两级深度的完整目录结构
+# 接口2：获取两级完整目录结构
 @app.route("/api/get-two-level-contents", methods=["GET"])
 def get_two_level_contents():
-    """从 tech-handbok 开始，向下扫描两级的完整目录结构"""
     full_contents = get_repo_contents_with_depth(START_DIR)
     return jsonify({
         "data": full_contents,
@@ -130,14 +118,9 @@ def get_two_level_contents():
         "branch": GITHUB_BRANCH
     })
 
-# 接口3：获取指定目录的内容（带深度控制）
+# 接口3：获取指定目录内容
 @app.route("/api/get-contents/<path:dir_path>", methods=["GET"])
 def get_contents(dir_path):
-    """
-    获取指定目录的内容（默认扫描两级）
-    示例：/api/get-contents/docs-site/tech-handbok/01-嵌入式硬件
-    """
-    # 拼接完整路径
     full_path = dir_path if dir_path.startswith(START_DIR) else f"{START_DIR}/{dir_path}"
     contents = get_repo_contents_with_depth(full_path)
     return jsonify({
@@ -146,6 +129,32 @@ def get_contents(dir_path):
         "scan_depth": SCAN_DEPTH,
         "branch": GITHUB_BRANCH
     })
+
+# 新增：上传笔记接口（前端提交功能必备）
+@app.route("/api/upload-note", methods=["POST"])
+def upload_note():
+    try:
+        data = request.get_json()
+        first_dir = data.get("first_dir", "")
+        second_dir = data.get("second_dir", "")
+        title = data.get("title", "")
+        content = data.get("content", "")
+
+        if not first_dir or not title or not content:
+            return jsonify({"code": 400, "msg": "参数不完整"})
+
+        # 拼接文件存储路径
+        if second_dir:
+            file_path = f"{START_DIR}/{first_dir}/{second_dir}/{title}.md"
+        else:
+            file_path = f"{START_DIR}/{first_dir}/{title}.md"
+
+        write_markdown_file(file_path, content, f"新增笔记：{title}")
+        return jsonify({"code": 200, "msg": "笔记提交成功！已同步到GitHub"})
+
+    except Exception as e:
+        logger.error(f"上传笔记失败: {str(e)}")
+        return jsonify({"code": 500, "msg": "服务器异常，提交失败"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
