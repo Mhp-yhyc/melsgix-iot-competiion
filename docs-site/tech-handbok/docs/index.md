@@ -1,4 +1,4 @@
-# 🏠 MeLsGix | 智护宝技术库
+# 🛡️ MeLsGix | 智护宝技术库
 ## 嵌入式 | AI | 云端 | 前端 · 团队知识中枢
 
 <div class="grid cards" markdown>
