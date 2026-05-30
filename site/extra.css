@@ -1,0 +1,132 @@
+/* ========== 全局变量（亮色/暗黑自动适配） ========== */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.25) !important;
+  --glass-border: rgba(255, 255, 255, 0.35) !important;
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15) !important;
+  --primary-color: #3f51b5 !important;
+  --accent-color: #ff6e40 !important;
+  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+[data-md-color-scheme="slate"] {
+  --glass-bg: rgba(30, 30, 30, 0.35) !important;
+  --glass-border: rgba(255, 255, 255, 0.15) !important;
+  --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+}
+
+/* ========== 1. 强制渐变背景，替代纯白 ========== */
+.md-container, .md-main, body {
+  background: var(--bg-gradient) !important;
+}
+
+/* ========== 2. 顶部导航栏：圆角玻璃态 ========== */
+.md-header {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+
+.md-tabs {
+  background: transparent !important;
+}
+
+.md-tabs__list {
+  background: transparent !important;
+}
+
+/* 导航标签：强制圆角 + 玻璃效果 */
+.md-tabs__item {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 12px !important; /* 强制圆角 */
+  margin: 0 4px !important;
+  padding: 0 12px !important;
+  transition: all 0.3s ease !important;
+}
+
+.md-tabs__item:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+/* 选中标签美化：解决你说的“选中部分不好看” */
+.md-tabs__item--active {
+  background: rgba(63, 81, 181, 0.35) !important;
+  border-color: rgba(63, 81, 181, 0.5) !important;
+  box-shadow: 0 0 12px rgba(63, 81, 181, 0.3) !important;
+}
+
+/* ========== 3. 侧边栏：直接隐藏 + 选中样式重写 ========== */
+.md-sidebar--primary {
+  display: none !important; /* 隐藏左侧栏 */
+}
+
+/* 重写侧边栏选中样式，防止残留 */
+.md-nav__link--active {
+  background: transparent !important;
+  border-right: none !important;
+  color: var(--primary-color) !important;
+}
+
+/* ========== 4. 首页卡片：玻璃+圆角+悬浮效果 ========== */
+.md-typeset .grid.cards>ul>li {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 16px !important; /* 卡片圆角 */
+  box-shadow: var(--glass-shadow) !important;
+  transition: all 0.3s ease !important;
+  padding: 24px !important;
+  text-align: center !important;
+}
+
+.md-typeset .grid.cards>ul>li:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 32px rgba(31, 38, 135, 0.2) !important;
+}
+
+/* 卡片文字适配 */
+.md-typeset .grid.cards>ul>li p,
+.md-typeset .grid.cards>ul>li h3 {
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+}
+
+/* ========== 5. 统一创建笔记按钮美化 ========== */
+a[href*="create-note.md"] {
+  background: rgba(255, 110, 64, 0.8) !important;
+  color: white !important;
+  padding: 12px 24px !important;
+  border-radius: 12px !important;
+  text-decoration: none !important;
+  transition: all 0.3s ease !important;
+  backdrop-filter: blur(8px) !important;
+  font-weight: bold !important;
+}
+
+a[href*="create-note.md"]:hover {
+  background: rgba(255, 110, 64, 1) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(255, 110, 64, 0.3) !important;
+}
+
+/* ========== 6. 全局文字与标题适配 ========== */
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif !important;
+}
+
+.md-typeset h1, .md-typeset h2, .md-typeset h3 {
+  color: #fff !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+/* ========== 7. 页面内容区域背景透明 ========== */
+.md-content {
+  background: transparent !important;
+}
