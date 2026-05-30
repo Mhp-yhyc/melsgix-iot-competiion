@@ -1,0 +1,83 @@
+site_name: 智护宝技术库
+site_description: 嵌入式 | AI | 云端 | 前端 · 团队知识中枢
+site_url: https://Mhp-yhyc.github.io/melsgix-iot-competiion
+
+theme:
+  name: material
+  language: zh
+  logo: assets/logo.png   # 可选：放一个logo
+  favicon: assets/favicon.ico
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.instant        # 无刷新跳转
+    - search.highlight
+    - search.suggest
+    - toc.integrate
+    - header.autohide
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep orange
+      toggle:
+        name: 切换暗黑模式
+        icon: material/weather-night
+    - scheme: slate
+      primary: indigo
+      accent: deep orange
+      toggle:
+        name: 切换亮色模式
+        icon: material/weather-sunny
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+nav:
+  - 首页: index.md
+  - 嵌入式硬件:
+      - 传感器: 01-嵌入式硬件/传感器/index.md
+      - 通信协议: 01-嵌入式硬件/通信协议/index.md
+      - 电源管理: 01-嵌入式硬件/电源管理/index.md
+  - 嵌入式软件:
+      - FreeRTOS: 02-嵌入式软件/FreeRTOS/index.md
+      - 驱动开发: 02-嵌入式软件/驱动开发/index.md
+  - AI与算法:
+      - TinyML: 03-AI与算法/TinyML/index.md
+      - 信号处理: 03-AI与算法/信号处理/index.md
+  - 云端与后端:
+      - 物联网平台: 04-云端与后端/物联网平台/index.md
+      - MQTT协议: 04-云端与后端/MQTT协议/index.md
+  - 前端与可视化:
+      - Web仪表盘: 05-前端与可视化/Web仪表盘/index.md
+      - 3D数字孪生: 05-前端与可视化/3D数字孪生/index.md
+  - 调试问题库: 06-调试与问题库/index.md
+  - 项目管理: 07-项目管理/index.md
+  - 📝 创建笔记: create-note.md
+
+plugins:
+  - search:
+      lang: zh
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      linenums: true
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+extra_css:
+  - extra.css
+
+repo_url: https://github.com/Mhp-yhyc/melsgix-iot-competiion
+repo_name: GitHub
