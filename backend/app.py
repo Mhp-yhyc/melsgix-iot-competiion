@@ -1,88 +1,104 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
-import base64
 import os
-from datetime import datetime
+import base64
 
 app = Flask(__name__)
+CORS(app)  # 全局允许跨域，前端正常调用
 
-# ===================== 你的配置（已自动填写）=====================
-GH_OWNER = "Mhp-yhyc"
-GH_REPO = "melsgix-iot-competiion"
-GH_BRANCH = "main"
+# ===================== 【必填配置，手动修改】 =====================
+# 从 Railway 环境变量读取 GitHub 令牌
+GITHUB_TOKEN = os.getenv("GH_TOKEN")
+# 你的 GitHub 用户名 / 仓库名
+REPO_OWNER = "Mhp-yhyc"
+REPO_NAME = "melsgix-iot-competiion"
 # =================================================================
 
-# 跨域配置（解决前端访问报错）
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['Access-Control-Allow-Methods'] = 'POST'
-    return response
+# GitHub 请求公共请求头
+HEADERS = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github.v3+json"
+}
 
-@app.route('/api/create-note', methods=['POST'])
-def create_note():
-    GH_TOKEN = os.getenv('GH_TOKEN')
-    if not GH_TOKEN:
-        return jsonify({"code": 500, "msg": "后端未配置GitHub令牌"}), 500
+# 工具函数：读取指定路径下 所有文件夹（只过滤目录，排除文件）
+def get_repo_folders(path: str = "") -> list:
+    """
+    path: 仓库内路径，空=根目录
+    return: 目录名列表
+    """
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    resp = requests.get(url, headers=HEADERS, timeout=10)
+    if resp.status_code != 200:
+        return []
+    items = resp.json()
+    folders = []
+    for item in items:
+        if item.get("type") == "dir":
+            folders.append(item.get("name"))
+    return folders
 
+# 工具函数：向 GitHub 指定路径写入 Markdown 文件
+def write_markdown_file(file_path: str, md_content: str, commit_msg: str):
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    encode_content = base64.b64encode(md_content.encode("utf-8")).decode("utf-8")
+    payload = {
+        "message": commit_msg,
+        "content": encode_content
+    }
+    requests.put(url, json=payload, headers=HEADERS, timeout=10)
+
+# 接口1：获取仓库【根目录下所有一级文件夹】
+@app.route("/api/get-first-dir", methods=["GET"])
+def get_first_dir():
+    folders = get_repo_folders("")
+    # 过滤掉 backend 目录（后端代码目录，不展示为分类）
+    filter_folders = [f for f in folders if f != "backend"]
+    return jsonify({"data": filter_folders})
+
+# 接口2：根据一级目录名称，获取其下【二级子文件夹】
+@app.route("/api/get-second-dir", methods=["GET"])
+def get_second_dir():
+    first_dir = request.args.get("first_dir", "")
+    if not first_dir:
+        return jsonify({"data": []})
+    folders = get_repo_folders(first_dir)
+    return jsonify({"data": folders})
+
+# 接口3：提交笔记到对应目录（核心上传接口）
+@app.route("/api/upload-note", methods=["POST"])
+def upload_note():
     try:
         data = request.json
-        folder = data.get('folder', '07-项目管理')
-        title = data.get('title', '未命名笔记').replace(r'[\\/:*?"<>|]', "")
-        content = data.get('content', '')
+        first_dir = data.get("first_dir", "")   # 一级目录 如：01-嵌入式硬件
+        second_dir = data.get("second_dir", "") # 二级目录 如：传感器
+        note_title = data.get("title", "").strip()
+        note_content = data.get("content", "").strip()
 
-        # 生成标准Markdown笔记
-        md_content = f"""---
-title: {title}
-category: {folder.split('/').join(' > ')}
-date: {datetime.now().strftime('%Y-%m-%d')}
----
+        # 基础校验
+        if not note_title or not note_content or not first_dir:
+            return jsonify({"code": 400, "msg": "分类、标题、内容不能为空"}), 400
 
-# {title}
-
-## 笔记信息
-- 分类：{folder.split('/').join(' > ')}
-- 创建时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-- 创建人：智护宝团队
-
-## 内容
-{content}
-
----
-*MeLsGix 智护宝技术库 | 自动生成*
-"""
-        # 生成文件路径
-        file_path = f"docs/{folder}/{title}.md"
-        encoded_content = base64.b64encode(md_content.encode('utf-8')).decode('utf-8')
-
-        # GitHub API
-        url = f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/contents/{file_path}"
-        headers = {"Authorization": f"token {GH_TOKEN}"}
-
-        # 获取文件SHA（更新用）
-        sha = None
-        res = requests.get(url, headers=headers)
-        if res.status_code == 200:
-            sha = res.json()["sha"]
-
-        # 提交文件
-        payload = {
-            "message": f"feat: 新增笔记 {title}",
-            "content": encoded_content,
-            "branch": GH_BRANCH
-        }
-        if sha:
-            payload["sha"] = sha
-
-        response = requests.put(url, json=payload, headers=headers)
-        if response.ok:
-            return jsonify({"code": 200, "msg": "✅ 提交成功！网站1分钟后自动更新"}), 200
+        # 拼接完整存储路径
+        if second_dir:
+            full_dir_path = f"{first_dir}/{second_dir}"
         else:
-            return jsonify({"code": 500, "msg": "❌ GitHub提交失败"}), 500
+            full_dir_path = first_dir
+
+        # 处理文件名（替换特殊字符，避免 GitHub 路径错误）
+        safe_filename = note_title.replace("/", "-").replace("\\", "-") + ".md"
+        full_file_path = f"{full_dir_path}/{safe_filename}"
+
+        # 拼接标准 Markdown 内容
+        md_body = f"# {note_title}\n\n{note_content}"
+        commit_info = f"【智能护宝技术库】新增笔记：{note_title}"
+
+        # 写入文件到 GitHub
+        write_markdown_file(full_file_path, md_body, commit_info)
+        return jsonify({"code": 200, "msg": f"笔记已成功保存至：{full_dir_path}"}), 200
 
     except Exception as e:
-        return jsonify({"code": 500, "msg": f"服务器错误：{str(e)}"}), 500
+        return jsonify({"code": 500, "msg": f"上传失败：{str(e)}"}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)), debug=False)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
