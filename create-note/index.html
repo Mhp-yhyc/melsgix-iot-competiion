@@ -1353,7 +1353,7 @@ async function loadFirstDir() {
 // 2. 一级目录切换加载二级目录
 firstDir.addEventListener("change", async function() {
     const selectedFirst = this.value;
-    secondDir.innerHTML = "<option value="">加载中...</option>";
+    secondDir.innerHTML = "<option value=''>加载中...</option>";
 
     if (!selectedFirst) {
         secondDir.innerHTML = "<option value=''>请先选择一级目录</option>";
