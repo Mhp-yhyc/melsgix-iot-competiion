@@ -19,7 +19,7 @@ GITHUB_TOKEN = os.getenv("GH_TOKEN")
 REPO_OWNER = "Mhp-yhyc"
 REPO_NAME = "melsgix-iot-competiion" 
 GITHUB_BRANCH = "main"
-START_DIR = "docs-site/tech-handbok"
+START_DIR = "tech-handbok/docs"
 SCAN_DEPTH = 2
 # =================================================================
 
