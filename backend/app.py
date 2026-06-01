@@ -4,6 +4,8 @@ import requests
 import os
 import base64
 import logging  
+import json
+import datetime
 
 app = Flask(__name__)
 # 强化跨域，解决前端本地访问卡住、跨域拦截问题
@@ -155,6 +157,75 @@ def upload_note():
     except Exception as e:
         logger.error(f"上传笔记失败: {str(e)}")
         return jsonify({"code": 500, "msg": "服务器异常，提交失败"})
+
+# ==============================================
+# 新增：公告系统 + 最近提交记录（团队激励）
+# ==============================================
+
+# 公告存储（重启不丢失，存在文件里）
+NOTICE_FILE = "notice.json"
+
+# 初始化公告文件
+if not os.path.exists(NOTICE_FILE):
+    with open(NOTICE_FILE, "w", encoding="utf-8") as f:
+        json.dump({
+            "content": "欢迎使用 MeLsGix 智护宝技术库！管理员可在后台发布团队任务～",
+            "update_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        }, f, ensure_ascii=False, indent=2)
+
+# 读取公告
+def load_notice():
+    with open(NOTICE_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+# 保存公告
+def save_notice(content):
+    data = {
+        "content": content,
+        "update_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+    with open(NOTICE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+# 1. 获取公告（首页用）
+@app.route("/api/get-notice", methods=["GET"])
+def api_get_notice():
+    return jsonify(load_notice())
+
+# 2. 修改公告（管理员后台用）
+@app.route("/api/edit-notice", methods=["POST"])
+def api_edit_notice():
+    data = request.json
+    content = data.get("content", "")
+    if not content:
+        return jsonify({"code": 400, "msg": "公告内容不能为空"})
+    save_notice(content)
+    return jsonify({"code": 200, "msg": "公告更新成功"})
+
+# 3. 获取 GitHub 最近提交记录（展示谁更新了文件）
+@app.route("/api/get-latest-commit", methods=["GET"])
+def get_latest_commit():
+    try:
+        url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/commits?per_page=10"
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        commits = resp.json()
+
+        result = []
+        for c in commits:
+            try:
+                result.append({
+                    "author": c["commit"]["author"]["name"],
+                    "commit_time": c["commit"]["author"]["date"].replace("T", " ")[:-6],
+                    "msg": c["commit"]["message"],
+                    "file_name": c["files"][0]["filename"] if "files" in c and len(c["files"]) > 0 else "更新目录"
+                })
+            except:
+                continue
+
+        return jsonify({"code": 200, "data": result})
+    except Exception as e:
+        logger.error(f"获取提交记录失败: {e}")
+        return jsonify({"code": 500, "msg": "获取失败"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
