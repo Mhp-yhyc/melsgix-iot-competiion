@@ -85,14 +85,27 @@ def get_file_raw_content(file_path: str) -> str:
         return ""
 
 def write_markdown_file(file_path: str, md_content: str, commit_msg: str):
-    """写入/更新 MD 文件到 GitHub"""
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}?ref={GITHUB_BRANCH}"
+    """写入/更新 MD 文件到 GitHub（自动处理 SHA）"""
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    # 1. 先尝试获取现有文件信息
+    sha = None
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            sha = data.get("sha")
+    except:
+        pass
+
     encode_content = base64.b64encode(md_content.encode("utf-8")).decode("utf-8")
     payload = {
         "message": commit_msg,
         "content": encode_content,
         "branch": GITHUB_BRANCH
     }
+    if sha:
+        payload["sha"] = sha
+
     try:
         resp = requests.put(url, json=payload, headers=HEADERS, timeout=10)
         resp.raise_for_status()
