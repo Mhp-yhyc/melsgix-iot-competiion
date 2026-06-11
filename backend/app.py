@@ -3,47 +3,44 @@ from flask_cors import CORS
 import requests
 import os
 import base64
-import logging  
+import logging
 import json
 import datetime
 
 app = Flask(__name__)
-# 强化跨域，解决前端本地访问卡住、跨域拦截问题
+# 全局跨域放行
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-# 配置日志
+# 日志配置
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ================================================================
-# 核心配置
+# ====================== 全局配置 ======================
 GITHUB_TOKEN = os.getenv("GH_TOKEN")
 REPO_OWNER = "Mhp-yhyc"
-REPO_NAME = "melsgix-iot-competiion" 
+REPO_NAME = "melsgix-iot-competiion"
 GITHUB_BRANCH = "main"
-START_DIR = "docs"
+START_DIR = "docs"  # 根目录固定为 docs
 SCAN_DEPTH = 2
-# =================================================================
 
-# GitHub 请求头
+# GitHub 通用请求头
 HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}",
     "Accept": "application/vnd.github.v3+json"
 }
 
-# 核心工具：带深度控制的递归获取目录内容
+# ====================== 工具函数 ======================
 def get_repo_contents_with_depth(path: str, current_depth: int = 0) -> list:
+    """递归获取目录内容（带深度限制）"""
     if current_depth >= SCAN_DEPTH:
         return []
-    
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}?ref={GITHUB_BRANCH}"
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
         resp.raise_for_status()
-        logger.info(f"API 响应: {resp.status_code} | 路径: {path} | 当前深度: {current_depth}")
+        logger.info(f"API 响应: {resp.status_code} | 路径: {path} | 深度: {current_depth}")
         items = resp.json()
         contents = []
-        
         for item in items:
             content = {
                 "name": item.get("name"),
@@ -52,23 +49,16 @@ def get_repo_contents_with_depth(path: str, current_depth: int = 0) -> list:
                 "html_url": item.get("html_url"),
                 "sub_contents": []
             }
-            
             if item.get("type") == "dir" and current_depth < SCAN_DEPTH - 1:
-                content["sub_contents"] = get_repo_contents_with_depth(
-                    item.get("path"), 
-                    current_depth + 1
-                )
-            
+                content["sub_contents"] = get_repo_contents_with_depth(item.get("path"), current_depth + 1)
             contents.append(content)
         return contents
     except requests.exceptions.RequestException as e:
-        logger.error(f"获取内容失败: {str(e)}")
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"错误响应: {e.response.status_code} - {e.response.text}")
+        logger.error(f"获取目录失败: {str(e)}")
         return []
 
-# 工具函数：获取指定路径下的一级文件夹（非递归）
 def get_repo_folders(path: str = "") -> list:
+    """获取指定路径下 一级文件夹名称列表"""
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}?ref={GITHUB_BRANCH}"
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
@@ -79,8 +69,23 @@ def get_repo_folders(path: str = "") -> list:
         logger.error(f"获取文件夹失败: {str(e)}")
         return []
 
-# 工具函数：写入Markdown文件
+def get_file_raw_content(file_path: str) -> str:
+    """读取 GitHub 上单个 MD 文件原始内容"""
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}?ref={GITHUB_BRANCH}"
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        # GitHub 返回 base64 编码内容
+        if data.get("encoding") == "base64":
+            return base64.b64decode(data["content"]).decode("utf-8")
+        return ""
+    except requests.exceptions.RequestException as e:
+        logger.error(f"读取文件失败 {file_path}: {str(e)}")
+        return ""
+
 def write_markdown_file(file_path: str, md_content: str, commit_msg: str):
+    """写入/更新 MD 文件到 GitHub"""
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}?ref={GITHUB_BRANCH}"
     encode_content = base64.b64encode(md_content.encode("utf-8")).decode("utf-8")
     payload = {
@@ -91,25 +96,19 @@ def write_markdown_file(file_path: str, md_content: str, commit_msg: str):
     try:
         resp = requests.put(url, json=payload, headers=HEADERS, timeout=10)
         resp.raise_for_status()
-        logger.info(f"文件写入成功: {file_path}")
+        logger.info(f"文件提交成功: {file_path}")
+        return True
     except requests.exceptions.RequestException as e:
-        logger.error(f"文件写入失败: {str(e)}")
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"错误响应: {e.response.status_code} - {e.response.text}")
+        logger.error(f"文件提交失败 {file_path}: {str(e)}")
+        return False
 
-# -------------------------- 业务接口 --------------------------
-# 接口1：获取 tech-handbok 下一级分类
+# ====================== 原有基础接口（保留） ======================
 @app.route("/api/get-first-dir", methods=["GET"])
 def get_first_dir():
+    """获取一级分类目录（给编辑器初始化下拉）"""
     folders = get_repo_folders(START_DIR)
-    logger.info(f"tech-handbok 下的一级分类: {folders}")
-    return jsonify({
-        "data": folders, 
-        "start_dir": START_DIR,
-        "branch": GITHUB_BRANCH
-    })
+    return jsonify({"list": folders})
 
-# 接口2：获取两级完整目录结构
 @app.route("/api/get-two-level-contents", methods=["GET"])
 def get_two_level_contents():
     full_contents = get_repo_contents_with_depth(START_DIR)
@@ -120,10 +119,10 @@ def get_two_level_contents():
         "branch": GITHUB_BRANCH
     })
 
-# 接口3：获取指定目录内容
 @app.route("/api/get-contents/<path:dir_path>", methods=["GET"])
 def get_contents(dir_path):
-    full_path = dir_path if dir_path.startswith(START_DIR) else f"{START_DIR}/{dir_path}"
+    """目录列表页使用：获取指定目录下所有文件/文件夹"""
+    full_path = f"{START_DIR}/{dir_path}"
     contents = get_repo_contents_with_depth(full_path)
     return jsonify({
         "data": contents,
@@ -132,40 +131,109 @@ def get_contents(dir_path):
         "branch": GITHUB_BRANCH
     })
 
-# 新增：上传笔记接口（前端提交功能必备）
-@app.route("/api/upload-note", methods=["POST"])
-def upload_note():
+# ====================== 【新增】编辑器专用接口（关键） ======================
+@app.route("/api/list-second-dir", methods=["POST"])
+def list_second_dir():
+    """根据一级分类，获取二级子分类"""
+    data = request.get_json()
+    first_dir = data.get("firstDir", "")
+    if not first_dir:
+        return jsonify({"list": []})
+    full_path = f"{START_DIR}/{first_dir}"
+    sub_dirs = get_repo_folders(full_path)
+    # 前置空选项 = 无二级分类
+    res_list = [""] + sub_dirs
+    return jsonify({"list": res_list})
+
+@app.route("/api/list-notes", methods=["POST"])
+def list_notes():
+    """获取指定目录下所有 .md 笔记名称（不含后缀）"""
+    data = request.get_json()
+    first_dir = data.get("firstDir", "")
+    second_dir = data.get("secondDir", "")
+
+    if not first_dir:
+        return jsonify({"list": []})
+
+    # 拼接完整路径
+    if second_dir:
+        full_path = f"{START_DIR}/{first_dir}/{second_dir}"
+    else:
+        full_path = f"{START_DIR}/{first_dir}"
+
     try:
-        data = request.get_json()
-        first_dir = data.get("first_dir", "")
-        second_dir = data.get("second_dir", "")
-        title = data.get("title", "")
-        content = data.get("content", "")
-
-        if not first_dir or not title or not content:
-            return jsonify({"code": 400, "msg": "参数不完整"})
-
-        # 拼接文件存储路径
-        if second_dir:
-            file_path = f"{START_DIR}/{first_dir}/{second_dir}/{title}.md"
-        else:
-            file_path = f"{START_DIR}/{first_dir}/{title}.md"
-
-        write_markdown_file(file_path, content, f"新增笔记：{title}")
-        return jsonify({"code": 200, "msg": "笔记提交成功！已同步到GitHub"})
-
+        url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{full_path}?ref={GITHUB_BRANCH}"
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        resp.raise_for_status()
+        items = resp.json()
+        # 只筛选 md 文件，去掉后缀
+        note_list = []
+        for item in items:
+            if item.get("type") == "file" and item["name"].lower().endswith(".md"):
+                note_name = os.path.splitext(item["name"])[0]
+                note_list.append(note_name)
+        return jsonify({"list": note_list})
     except Exception as e:
-        logger.error(f"上传笔记失败: {str(e)}")
-        return jsonify({"code": 500, "msg": "服务器异常，提交失败"})
+        logger.error(f"获取笔记列表失败: {e}")
+        return jsonify({"list": []})
 
-# ==============================================
-# 新增：公告系统 + 最近提交记录（团队激励）
-# ==============================================
+@app.route("/api/get-note-content", methods=["POST"])
+def get_note_content():
+    """读取单篇笔记内容（编辑模式加载原文）"""
+    data = request.get_json()
+    first_dir = data.get("firstDir", "")
+    second_dir = data.get("secondDir", "")
+    note_name = data.get("noteName", "")
 
-# 公告存储（重启不丢失，存在文件里）
+    if not first_dir or not note_name:
+        return jsonify({"success": False, "msg": "参数不全"})
+
+    # 拼接完整文件路径
+    file_name = f"{note_name}.md"
+    if second_dir:
+        full_file_path = f"{START_DIR}/{first_dir}/{second_dir}/{file_name}"
+    else:
+        full_file_path = f"{START_DIR}/{first_dir}/{file_name}"
+
+    content = get_file_raw_content(full_file_path)
+    if content == "":
+        return jsonify({"success": False, "msg": "笔记不存在或读取失败"})
+    return jsonify({"success": True, "content": content})
+
+# ====================== 笔记提交接口（对接编辑器正式提交） ======================
+@app.route("/api/submit-note", methods=["POST"])
+def submit_note():
+    """编辑器正式提交：新建/覆盖笔记"""
+    data = request.get_json()
+    first_dir = data.get("firstDir", "")
+    second_dir = data.get("secondDir", "")
+    note_name = data.get("noteName", "")
+    markdown = data.get("markdown", "")
+
+    if not first_dir or not note_name or not markdown:
+        return jsonify({"success": False, "msg": "参数缺失"})
+
+    file_name = f"{note_name}.md"
+    if second_dir:
+        full_path = f"{START_DIR}/{first_dir}/{second_dir}/{file_name}"
+    else:
+        full_path = f"{START_DIR}/{first_dir}/{file_name}"
+
+    commit_msg = f"更新笔记: {note_name}"
+    ok = write_markdown_file(full_path, markdown, commit_msg)
+    if ok:
+        return jsonify({"success": True, "msg": "提交成功，已同步至GitHub"})
+    else:
+        return jsonify({"success": False, "msg": "提交失败，请检查权限或网络"})
+
+# 草稿接口（仅前端临时保存，可选：如需云端草稿可自行扩展）
+@app.route("/api/save-draft", methods=["POST"])
+def save_draft():
+    """本地临时草稿，这里只做返回（前端浏览器本地存储也可）"""
+    return jsonify({"success": True, "msg": "草稿已保存"})
+
+# ====================== 公告 + 最近提交记录（保留原有） ======================
 NOTICE_FILE = "notice.json"
-
-# 初始化公告文件
 if not os.path.exists(NOTICE_FILE):
     with open(NOTICE_FILE, "w", encoding="utf-8") as f:
         json.dump({
@@ -173,12 +241,10 @@ if not os.path.exists(NOTICE_FILE):
             "update_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         }, f, ensure_ascii=False, indent=2)
 
-# 读取公告
 def load_notice():
     with open(NOTICE_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# 保存公告
 def save_notice(content):
     data = {
         "content": content,
@@ -187,12 +253,10 @@ def save_notice(content):
     with open(NOTICE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# 1. 获取公告（首页用）
 @app.route("/api/get-notice", methods=["GET"])
 def api_get_notice():
     return jsonify(load_notice())
 
-# 2. 修改公告（管理员后台用）
 @app.route("/api/edit-notice", methods=["POST"])
 def api_edit_notice():
     data = request.json
@@ -202,14 +266,12 @@ def api_edit_notice():
     save_notice(content)
     return jsonify({"code": 200, "msg": "公告更新成功"})
 
-# 3. 获取 GitHub 最近提交记录（展示谁更新了文件）
 @app.route("/api/get-latest-commit", methods=["GET"])
 def get_latest_commit():
     try:
         url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/commits?per_page=10"
         resp = requests.get(url, headers=HEADERS, timeout=10)
         commits = resp.json()
-
         result = []
         for c in commits:
             try:
@@ -221,7 +283,6 @@ def get_latest_commit():
                 })
             except:
                 continue
-
         return jsonify({"code": 200, "data": result})
     except Exception as e:
         logger.error(f"获取提交记录失败: {e}")
